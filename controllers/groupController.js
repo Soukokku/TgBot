@@ -29,7 +29,6 @@ exports.createGroup = async (chatId, groupName, bot) => {
 
 exports.showActiveGroups = async (chatId, bot, page = 0) => {
     const limit = 5;
-    // Проверяем, чтобы значение page не было меньше 0
     if (page < 0) {
         page = 0;
     }
@@ -49,7 +48,6 @@ exports.showActiveGroups = async (chatId, bot, page = 0) => {
                 { text: group.name, callback_data: `choose_group_${group.id}` }
             ]);
 
-            // Добавляем кнопки для пагинации
             const paginationButtons = [];
             if (page > 0) {
                 paginationButtons.push({ text: 'Назад', callback_data: `select_group_${page - 1}` });
@@ -57,6 +55,8 @@ exports.showActiveGroups = async (chatId, bot, page = 0) => {
             if (groups.length === limit) {
                 paginationButtons.push({ text: 'Вперед', callback_data: `select_group_${page + 1}` });
             }
+            groupButtons.push([{ text: 'Вернуться', callback_data: 'back' }]);
+
             if (paginationButtons.length > 0) {
                 groupButtons.push(paginationButtons);
             }
@@ -72,6 +72,7 @@ exports.showActiveGroups = async (chatId, bot, page = 0) => {
         console.error(error);
     }
 };
+
 
 exports.activateGroup = async (chatId, groupId, bot) => {
     try {

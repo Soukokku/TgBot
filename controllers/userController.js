@@ -8,7 +8,7 @@ exports.addUser = async (telegramId, userInfo) => {
                 telegram_id: telegramId,
                 username: userInfo.username,
                 name: userInfo.first_name + ' ' + (userInfo.last_name || ''),
-                role: 'student' 
+                role: 'student'
             });
         }
         return user;
@@ -34,11 +34,6 @@ exports.assignCurator = async (chatId, username, groupId, bot) => {
 
         if (!group) {
             bot.sendMessage(chatId, `Группа с ID ${groupId} не найдена.`);
-            return;
-        }
-
-        if (user.group_id === null) {
-            bot.sendMessage(chatId, `Пользователь @${user.username} не привязан к группе. Сначала назначьте пользователя в группу.`);
             return;
         }
 
