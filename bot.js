@@ -266,9 +266,19 @@ bot.on('message', async (msg) => {
                 userStates[chatId].state = 'add_task_due_date';
                 break;
             case 'add_task_due_date':
-                await taskController.createTask(chatId, userId, userStates[chatId].taskTitle, userStates[chatId].taskDescription, text, bot);
-                userStates[chatId] = {};
-                await returnToStartMenu();
+                const enteredDate = new Date(text);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0); // Set the time to midnight to only compare the date part
+                
+                if (isNaN(enteredDate.getTime())) {
+                    bot.sendMessage(chatId, 'Неверный формат даты. Пожалуйста, введите дату в формате ГГГГ-ММ-ДД:');
+                } else if (enteredDate < today) {
+                    bot.sendMessage(chatId, 'Пожалуйста, введите действительную дату завершения задачи:');
+                } else {
+                    await taskController.createTask(chatId, userId, userStates[chatId].taskTitle, userStates[chatId].taskDescription, text, bot);
+                    userStates[chatId] = {};
+                    await returnToStartMenu();
+                }
                 break;
             case 'complete_task':
                 await taskController.completeTask(chatId, parseInt(text), bot);
@@ -319,8 +329,3 @@ bot.on('message', async (msg) => {
         }
     }
 });
-
-bot.setMyCommands([
-    { command: '/start', description: 'Начало работы с ботом' },
-    { command: '/admin', description: 'Режим администратора' }
-]);
