@@ -19,7 +19,6 @@ exports.addUser = async (telegramId, userInfo) => {
 
 exports.assignCurator = async (chatId, username, groupId, bot) => {
     try {
-        // Удаляем @ из username, если он присутствует
         if (username.startsWith('@')) {
             username = username.substring(1);
         }
@@ -41,6 +40,32 @@ exports.assignCurator = async (chatId, username, groupId, bot) => {
         bot.sendMessage(chatId, `Пользователь @${user.username} назначен куратором группы "${group.name}".`);
     } catch (error) {
         bot.sendMessage(chatId, 'Произошла ошибка при назначении куратора.');
+        console.error(error);
+    }
+};
+
+exports.removeCuratorRole = async (chatId, username, bot) => {
+    try {
+        if (username.startsWith('@')) {
+            username = username.substring(1);
+        }
+
+        const user = await db.User.findOne({ where: { username: username } });
+
+        if (!user) {
+            bot.sendMessage(chatId, `Пользователь с username @${username} не найден.`);
+            return;
+        }
+
+        if (user.role !== 'curator') {
+            bot.sendMessage(chatId, `Пользователь с username @${username} не является куратором.`);
+            return;
+        }
+
+        await user.update({ role: 'student', group_id: null });
+        bot.sendMessage(chatId, `Роль пользователя @${user.username} изменена на 'студент'.`);
+    } catch (error) {
+        bot.sendMessage(chatId, 'Произошла ошибка при удалении куратора.');
         console.error(error);
     }
 };

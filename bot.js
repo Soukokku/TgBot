@@ -25,10 +25,6 @@ bot.onText(/\/start/, async (msg) => {
             [{ text: 'Назад', callback_data: 'back' }]
         ];
 
-        if (user.role === 'admin') {
-            buttons.unshift([{ text: 'Добавить группу', callback_data: 'add_group_admin' }]);
-        }
-
         bot.sendMessage(chatId, `Вы выбрали группу "${group.name}"`, {
             reply_markup: {
                 inline_keyboard: buttons
@@ -62,6 +58,7 @@ bot.onText(/\/admin/, async (msg) => {
                     [{ text: 'Назначить куратора', callback_data: 'assign_curator' }],
                     [{ text: 'Активировать группу', callback_data: 'add_group_admin' }],
                     [{ text: 'Удалить группу', callback_data: 'delete_group' }],
+                    [{ text: 'Удалить куратора', callback_data: 'remove_curator' }],
                     [{ text: 'Назад', callback_data: 'back' }]
                 ]
             }
@@ -91,10 +88,6 @@ bot.on('callback_query', async (query) => {
                 [{ text: 'Назад', callback_data: 'back' }]
             ];
 
-            if (user.role === 'admin') {
-                buttons.unshift([{ text: 'Добавить группу', callback_data: 'add_group_admin' }]);
-            }
-
             bot.sendMessage(chatId, `Вы выбрали группу "${group.name}"`, {
                 reply_markup: {
                     inline_keyboard: buttons
@@ -122,67 +115,84 @@ bot.on('callback_query', async (query) => {
                     [{ text: 'Назначить куратора', callback_data: 'assign_curator' }],
                     [{ text: 'Активировать группу', callback_data: 'add_group_admin' }],
                     [{ text: 'Удалить группу', callback_data: 'delete_group' }],
+                    [{ text: 'Удалить куратора', callback_data: 'remove_curator' }],
                     [{ text: 'Назад', callback_data: 'back' }]
                 ]
             }
         });
     };
 
-    if (data === 'add_group') {
-        bot.sendMessage(chatId, 'Введите имя группы для добавления:');
-        userStates[chatId].state = 'add_group';
-    } else if (data === 'pending_groups') {
-        await groupController.getPendingGroups(chatId, bot);
-        await returnToStartMenu();
-    } else if (data.startsWith('select_group_')) {
-        const page = parseInt(data.split('_')[2]);
-        await groupController.showActiveGroups(chatId, bot, page);
-    } else if (data.startsWith('choose_group_')) {
-        const groupId = parseInt(data.split('_')[2]);
-        const user = await db.User.findOne({ where: { telegram_id: chatId } });
-        if (user) {
-            await user.update({ group_id: groupId });
-            const group = await db.Group.findByPk(groupId);
-            const buttons = [
-                [{ text: `Задачи`, callback_data: `tasks_${user.id}` }],
-                [{ text: `Добавить задачу`, callback_data: `add_task_${user.id}` }],
-                [{ text: 'Назад', callback_data: 'back' }]
-            ];
-
-            if (user.role === 'admin') {
-                buttons.unshift([{ text: 'Добавить группу', callback_data: 'add_group_admin' }]);
+    switch (data) {
+        case 'add_group':
+            bot.sendMessage(chatId, 'Введите имя группы для добавления:');
+            userStates[chatId].state = 'add_group';
+            break;
+        case 'pending_groups':
+            await groupController.getPendingGroups(chatId, bot);
+            await returnToStartMenu();
+            break;
+        case 'complete_task_prompt':
+            bot.sendMessage(chatId, 'Введите ID задачи для завершения:');
+            userStates[chatId].state = 'complete_task';
+            break;
+        case 'back':
+            const user = await db.User.findOne({ where: { telegram_id: chatId } });
+            if (user) {
+                await user.update({ group_id: null });
             }
+            await returnToStartMenu();
+            break;
+        case 'remove_curator':
+            bot.sendMessage(chatId, 'Введите @username (без @!) пользователя для удаления куратора:');
+            userStates[chatId].state = 'remove_curator';
+            break;
+        default:
+            if (data.startsWith('select_group_')) {
+                const page = parseInt(data.split('_')[2]);
+                await groupController.showActiveGroups(chatId, bot, page);
+            } else if (data.startsWith('choose_group_')) {
+                const selectedGroupId = parseInt(data.split('_')[2]);
+                const user = await db.User.findOne({ where: { telegram_id: chatId } });
+                if (user) {
+                    await user.update({ group_id: selectedGroupId });
+                    const group = await db.Group.findByPk(selectedGroupId);
+                    const buttons = [
+                        [{ text: `Задачи`, callback_data: `tasks_${user.id}` }],
+                        [{ text: `Добавить задачу`, callback_data: `add_task_${user.id}` }],
+                        [{ text: 'Назад', callback_data: 'back' }]
+                    ];
 
-            bot.sendMessage(chatId, `Вы выбрали группу "${group.name}"`, {
-                reply_markup: {
-                    inline_keyboard: buttons
+                    bot.sendMessage(chatId, `Вы выбрали группу "${group.name}"`, {
+                        reply_markup: {
+                            inline_keyboard: buttons
+                        }
+                    });
                 }
-            });
-        }
-    } else if (data.startsWith('tasks_')) {
-        const userId = data.split('_')[1];
-        await taskController.getTasks(chatId, userId, bot);
-    } else if (data.startsWith('add_task_')) {
-        const userId = data.split('_')[2];
-        bot.sendMessage(chatId, 'Введите название задачи:');
-        userStates[chatId].state = 'add_task_title';
-        userStates[chatId].userId = userId;
-    } else if (data === 'complete_task_prompt') {
-        bot.sendMessage(chatId, 'Введите ID задачи для завершения:');
-        userStates[chatId].state = 'complete_task';
-    } else if (data === 'back') {
-        await returnToStartMenu();
-    } else if (userStates[chatId] && userStates[chatId].role === 'admin') {
-        if (data === 'assign_curator') {
-            bot.sendMessage(chatId, 'Введите @username (без @!) пользователя для назначения куратором:');
-            userStates[chatId].state = 'assign_curator';
-        } else if (data === 'add_group_admin') {
-            bot.sendMessage(chatId, 'Введите ID группы для активации:');
-            userStates[chatId].state = 'activate_group';
-        } else if (data === 'delete_group') {
-            bot.sendMessage(chatId, 'Введите название группы для удаления:');
-            userStates[chatId].state = 'delete_group';
-        }
+            } else if (data.startsWith('tasks_')) {
+                const userId = data.split('_')[1];
+                await taskController.getTasks(chatId, userId, bot);
+            } else if (data.startsWith('add_task_')) {
+                const userId = data.split('_')[2];
+                bot.sendMessage(chatId, 'Введите название задачи:');
+                userStates[chatId].state = 'add_task_title';
+                userStates[chatId].userId = userId;
+            } else if (userStates[chatId] && userStates[chatId].role === 'admin') {
+                switch (data) {
+                    case 'assign_curator':
+                        bot.sendMessage(chatId, 'Введите @username (без @!) пользователя для назначения куратором:');
+                        userStates[chatId].state = 'assign_curator';
+                        break;
+                    case 'add_group_admin':
+                        bot.sendMessage(chatId, 'Введите ID группы для активации:');
+                        userStates[chatId].state = 'activate_group';
+                        break;
+                    case 'delete_group':
+                        bot.sendMessage(chatId, 'Введите название группы для удаления:');
+                        userStates[chatId].state = 'delete_group';
+                        break;
+                }
+            }
+            break;
     }
 });
 
@@ -204,10 +214,6 @@ bot.on('message', async (msg) => {
                     [{ text: `Добавить задачу`, callback_data: `add_task_${user.id}` }],
                     [{ text: 'Назад', callback_data: 'back' }]
                 ];
-
-                if (user.role === 'admin') {
-                    buttons.unshift([{ text: 'Добавить группу', callback_data: 'add_group_admin' }]);
-                }
 
                 bot.sendMessage(chatId, `Вы выбрали группу "${group.name}"`, {
                     reply_markup: {
@@ -236,59 +242,80 @@ bot.on('message', async (msg) => {
                         [{ text: 'Назначить куратора', callback_data: 'assign_curator' }],
                         [{ text: 'Активировать группу', callback_data: 'add_group_admin' }],
                         [{ text: 'Удалить группу', callback_data: 'delete_group' }],
+                        [{ text: 'Удалить куратора', callback_data: 'remove_curator' }],
                         [{ text: 'Назад', callback_data: 'back' }]
                     ]
                 }
             });
         };
 
-        if (state === 'add_group') {
-            await groupController.createGroup(chatId, text, bot);
-            userStates[chatId] = {};
-            await returnToStartMenu();
-        } else if (state === 'add_task_title') {
-            userStates[chatId].taskTitle = text;
-            bot.sendMessage(chatId, 'Введите описание задачи:');
-            userStates[chatId].state = 'add_task_description';
-        } else if (state === 'add_task_description') {
-            userStates[chatId].taskDescription = text;
-            bot.sendMessage(chatId, 'Введите дату завершения задачи в формате ГГГГ-ММ-ДД:');
-            userStates[chatId].state = 'add_task_due_date';
-        } else if (state === 'add_task_due_date') {
-            await taskController.addTask(chatId, userId, userStates[chatId].taskTitle, userStates[chatId].taskDescription, text, bot);
-            userStates[chatId] = {};
-            await returnToStartMenu();
-        } else if (state === 'complete_task') {
-            await taskController.completeTask(chatId, parseInt(text), bot);
-            userStates[chatId] = {};
-            await returnToStartMenu();
-        } else if (state === 'activate_group') {
-            const groupId = parseInt(text);
-            await groupController.activateGroup(chatId, groupId, bot);
-            userStates[chatId] = {};
-            await returnToAdminMenu();
-        } else if (state === 'delete_group') {
-            await groupController.deleteGroup(chatId, text, bot);
-            userStates[chatId] = {};
-            await returnToAdminMenu();
-        } else if (state === 'assign_curator') {
-            const username = text.trim();
-            if (!username) {
-                bot.sendMessage(chatId, 'Введено пустое значение. Попробуйте еще раз:');
-                return;
-            }
-            bot.sendMessage(chatId, 'Введите ID группы для назначения куратора:');
-            userStates[chatId].state = 'assign_curator_group';
-            userStates[chatId].curatorUsername = username;
-        } else if (state === 'assign_curator_group') {
-            const groupId = parseInt(text);
-            if (isNaN(groupId)) {
-                bot.sendMessage(chatId, 'Введённый ID группы некорректен. Попробуйте еще раз.');
-                return;
-            }
-            await userController.assignCurator(chatId, userStates[chatId].curatorUsername, groupId, bot);
-            userStates[chatId] = {};
-            await returnToAdminMenu();
+        switch (state) {
+            case 'add_group':
+                await groupController.createGroup(chatId, text, bot);
+                userStates[chatId] = {};
+                await returnToStartMenu();
+                break;
+            case 'add_task_title':
+                userStates[chatId].taskTitle = text;
+                bot.sendMessage(chatId, 'Введите описание задачи:');
+                userStates[chatId].state = 'add_task_description';
+                break;
+            case 'add_task_description':
+                userStates[chatId].taskDescription = text;
+                bot.sendMessage(chatId, 'Введите дату завершения задачи в формате ГГГГ-ММ-ДД:');
+                userStates[chatId].state = 'add_task_due_date';
+                break;
+            case 'add_task_due_date':
+                await taskController.createTask(chatId, userId, userStates[chatId].taskTitle, userStates[chatId].taskDescription, text, bot);
+                userStates[chatId] = {};
+                await returnToStartMenu();
+                break;
+            case 'complete_task':
+                await taskController.completeTask(chatId, parseInt(text), bot);
+                userStates[chatId] = {};
+                await returnToStartMenu();
+                break;
+            case 'activate_group':
+                const groupToActivateId = parseInt(text);
+                await groupController.activateGroup(chatId, groupToActivateId, bot);
+                userStates[chatId] = {};
+                await returnToAdminMenu();
+                break;
+            case 'delete_group':
+                await groupController.deleteGroup(chatId, text, bot);
+                userStates[chatId] = {};
+                await returnToAdminMenu();
+                break;
+            case 'assign_curator':
+                const username = text.trim();
+                if (!username) {
+                    bot.sendMessage(chatId, 'Введено пустое значение. Попробуйте еще раз:');
+                    return;
+                }
+                bot.sendMessage(chatId, 'Введите ID группы для назначения куратора:');
+                userStates[chatId].state = 'assign_curator_group';
+                userStates[chatId].curatorUsername = username;
+                break;
+            case 'assign_curator_group':
+                const groupIdToAssignCurator = parseInt(text);
+                if (isNaN(groupIdToAssignCurator)) {
+                    bot.sendMessage(chatId, 'Введённый ID группы некорректен. Попробуйте еще раз.');
+                    return;
+                }
+                await userController.assignCurator(chatId, userStates[chatId].curatorUsername, groupIdToAssignCurator, bot);
+                userStates[chatId] = {};
+                await returnToAdminMenu();
+                break;
+            case 'remove_curator':
+                const usernameToRemove = text.trim();
+                if (!usernameToRemove) {
+                    bot.sendMessage(chatId, 'Введено пустое значение. Попробуйте еще раз:');
+                    return;
+                }
+                await userController.removeCuratorRole(chatId, usernameToRemove, bot);
+                userStates[chatId] = {};
+                await returnToAdminMenu();
+                break;
         }
     }
 });
