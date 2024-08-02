@@ -50,10 +50,11 @@ exports.showActiveGroups = async (chatId, bot, page = 0) => {
 
             const paginationButtons = [];
             if (page > 0) {
-                paginationButtons.push({ text: 'Назад', callback_data: `select_group_${page - 1}` });
+                paginationButtons.push({ text: 'Назад', callback_data: `select_active_group_${page - 1}` });
             }
+
             if (groups.length === limit) {
-                paginationButtons.push({ text: 'Вперед', callback_data: `select_group_${page + 1}` });
+                paginationButtons.push({ text: 'Вперед', callback_data: `select_active_group_${page + 1}` });
             }
             groupButtons.push([{ text: 'Вернуться', callback_data: 'back' }]);
 
