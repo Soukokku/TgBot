@@ -75,9 +75,9 @@ exports.showActiveGroups = async (chatId, bot, page = 0) => {
 };
 
 
-exports.activateGroup = async (chatId, groupId, bot) => {
+exports.activateGroup = async (chatId, groupName, bot) => {
     try {
-        const group = await db.Group.findByPk(groupId);
+        const group = await db.Group.findOne({ where: { name: groupName } });
         if (!group) {
             bot.sendMessage(chatId, 'Группа не найдена.');
             return;
@@ -89,7 +89,7 @@ exports.activateGroup = async (chatId, groupId, bot) => {
         }
 
         await group.update({ status: 'active' });
-        bot.sendMessage(chatId, `Группа с ID: ${groupId} активирована.`);
+        bot.sendMessage(chatId, `Группа с именем ${groupName} активирована.`);
     } catch (error) {
         bot.sendMessage(chatId, 'Произошла ошибка при активации группы.');
         console.error(error);

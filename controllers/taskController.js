@@ -16,7 +16,8 @@ exports.getPersonalTasks = async (chatId, userId, bot) => {
         bot.sendMessage(chatId, taskList, {
             reply_markup: {
                 inline_keyboard: [
-                    [{ text: 'Завершить задачу', callback_data: `complete_task_prompt` }]
+                    [{ text: 'Завершить задачу', callback_data: `complete_task_prompt` }],
+                    [{ text: 'назад', callback_data: `back_to_task_menu` }]
                 ]
             }
         });
@@ -55,7 +56,8 @@ exports.getGroupTasks = async (chatId, userId, bot) => {
         bot.sendMessage(chatId, taskList, {
             reply_markup: {
                 inline_keyboard: [
-                    [{ text: 'Завершить задачу', callback_data: `complete_task_prompt` }]
+                    [{ text: 'Завершить задачу', callback_data: `complete_task_prompt` }],
+                    [{ text: 'назад', callback_data: `back_to_task_menu` }]
                 ]
             }
         });
